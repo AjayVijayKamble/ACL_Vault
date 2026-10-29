@@ -55,18 +55,23 @@ jobs:
 
       - name: "2. Configure Xcode Environment"
         run: |
-          echo "=== Selecting Xcode Version ==="
-          if [ -d "/Applications/Xcode_15.4.app" ]; then
-            sudo xcode-select -s /Applications/Xcode_15.4.app
+          echo "=== Available Xcode Installations ==="
+          ls -d /Applications/Xcode* || true
+          
+          # Prioritize Xcode 16 for Swift 6 & latest project file format support
+          if [ -d "/Applications/Xcode_16.1.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.1.app
           elif [ -d "/Applications/Xcode_16.0.app" ]; then
             sudo xcode-select -s /Applications/Xcode_16.0.app
+          elif [ -d "/Applications/Xcode_16.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.app
+          elif [ -d "/Applications/Xcode_15.4.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_15.4.app
           else
             sudo xcode-select -s /Applications/Xcode.app
           fi
           
           xcodebuild -version
-          echo "=== Available Simulators ==="
-          xcrun simctl list devices available | grep -E "iPhone|iPad" | head -n 10
 
       - name: "3. Install & Verify XcodeGen"
         run: |
@@ -84,12 +89,19 @@ jobs:
 
       - name: "5. Compile for iOS Simulator (iphonesimulator)"
         run: |
+          echo "Detecting available iOS Simulator device..."
+          SIM_NAME=$(xcrun simctl list devices available | grep -E "iPhone 16|iPhone 15|iPhone 14" | head -n 1 | sed -E 's/^[[:space:]]*([^(]+).*/\1/' | xargs)
+          if [ -z "$SIM_NAME" ]; then
+            SIM_NAME="iPhone 15 Pro"
+          fi
+          echo "Target Simulator Destination: $SIM_NAME"
+          
           echo "Building ACLVault Debug Simulator Bundle..."
           xcodebuild build \
             -project ACLVault.xcodeproj \
             -scheme ACLVault \
             -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=iPhone 15 Pro" \
+            -destination "platform=iOS Simulator,name=$SIM_NAME" \
             -configuration Debug \
             -derivedDataPath ./DerivedData \
             CODE_SIGNING_ALLOWED=NO \
