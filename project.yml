@@ -2,7 +2,6 @@ name: ACLVault
 options:
   bundleIdPrefix: com.aclvault
   createIntermediateGroups: true
-  xcodeVersion: "15.4"
 settings:
   SWIFT_VERSION: "6.0"
   IPHONEOS_DEPLOYMENT_TARGET: "17.0"

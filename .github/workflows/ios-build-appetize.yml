@@ -55,17 +55,8 @@ jobs:
 
       - name: "2. Configure Xcode Environment"
         run: |
-          echo "=== Available Xcode Installations ==="
-          ls -d /Applications/Xcode* || true
-          
-          # Prioritize Xcode 16 for Swift 6 & latest project file format support
-          if [ -d "/Applications/Xcode_16.1.app" ]; then
-            sudo xcode-select -s /Applications/Xcode_16.1.app
-          elif [ -d "/Applications/Xcode_16.0.app" ]; then
-            sudo xcode-select -s /Applications/Xcode_16.0.app
-          elif [ -d "/Applications/Xcode_16.app" ]; then
-            sudo xcode-select -s /Applications/Xcode_16.app
-          elif [ -d "/Applications/Xcode_15.4.app" ]; then
+          echo "=== Selecting Stable Xcode 15.4 Toolchain ==="
+          if [ -d "/Applications/Xcode_15.4.app" ]; then
             sudo xcode-select -s /Applications/Xcode_15.4.app
           else
             sudo xcode-select -s /Applications/Xcode.app
@@ -81,27 +72,25 @@ jobs:
           fi
           xcodegen version
 
-      - name: "4. Generate Xcode Project (project.yml)"
+      - name: "4. Generate Xcode Project & Patch ObjectVersion"
         run: |
           echo "Generating ACLVault.xcodeproj from project.yml..."
           xcodegen generate --spec project.yml
-          ls -ld ACLVault.xcodeproj
+          
+          echo "Patching objectVersion to 56 for Xcode 15.4 compatibility..."
+          sed -i '' 's/objectVersion = [0-9]*/objectVersion = 56/g' ACLVault.xcodeproj/project.pbxproj
+          
+          echo "Verified objectVersion in project.pbxproj:"
+          grep "objectVersion" ACLVault.xcodeproj/project.pbxproj || true
 
       - name: "5. Compile for iOS Simulator (iphonesimulator)"
         run: |
-          echo "Detecting available iOS Simulator device..."
-          SIM_NAME=$(xcrun simctl list devices available | grep -E "iPhone 16|iPhone 15|iPhone 14" | head -n 1 | sed -E 's/^[[:space:]]*([^(]+).*/\1/' | xargs)
-          if [ -z "$SIM_NAME" ]; then
-            SIM_NAME="iPhone 15 Pro"
-          fi
-          echo "Target Simulator Destination: $SIM_NAME"
-          
           echo "Building ACLVault Debug Simulator Bundle..."
           xcodebuild build \
             -project ACLVault.xcodeproj \
             -scheme ACLVault \
             -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=$SIM_NAME" \
+            -destination "generic/platform=iOS Simulator" \
             -configuration Debug \
             -derivedDataPath ./DerivedData \
             CODE_SIGNING_ALLOWED=NO \
