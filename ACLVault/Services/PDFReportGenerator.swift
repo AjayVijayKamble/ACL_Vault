@@ -34,11 +34,12 @@ public enum PDFReportGenerator {
         let fileURL = tempDirectory.appendingPathComponent(fileName)
         
         var box = CGRect(x: 0, y: 0, width: 612, height: 792)
-        guard let pdfContext = CGContext(fileURL as CFURL, mediaBox: &box, nil) else {
+        guard let dataConsumer = CGDataConsumer(url: fileURL as CFURL),
+              let pdfContext = CGContext(consumer: dataConsumer, mediaBox: &box, nil) else {
             return nil
         }
         
-        pdfContext.beginPDFPage(nil)
+        pdfContext.beginPDFPage(nil as CFDictionary?)
         renderer.render { size, renderInContext in
             renderInContext(pdfContext)
         }
