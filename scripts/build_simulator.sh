@@ -19,19 +19,23 @@ xcodebuild build \
   -project ACLVault.xcodeproj \
   -scheme ACLVault \
   -sdk iphonesimulator \
+  -destination "platform=iOS Simulator,name=iPhone 15 Pro" \
   -configuration Debug \
-  -derivedDataPath DerivedData \
-  -destination "generic/platform=iOS Simulator" \
+  -derivedDataPath ./DerivedData \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGN_IDENTITY="" \
-  COMPILER_INDEX_STORE_ENABLE=NO
+  CODE_SIGN_IDENTITY=""
 
 echo "--- Step 4: Packaging Simulator Bundle into ZIP ---"
-APP_PATH=$(find DerivedData/Build/Products -name "ACLVault.app" -type d | head -n 1)
+APP_PATH=$(find ./DerivedData -name "*.app" -type d | head -n 1)
 
 if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
-    echo "Error: ACLVault.app could not be found in DerivedData"
+    echo "Searching entire workspace for .app..."
+    APP_PATH=$(find . -name "*.app" -type d | grep -v "Xcode" | head -n 1)
+fi
+
+if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+    echo "Error: No .app bundle was found"
     exit 1
 fi
 
@@ -47,4 +51,3 @@ echo " Location: $(pwd)/ACLVault-Simulator.zip"
 echo " Size: $(du -h ACLVault-Simulator.zip | cut -f1)"
 echo " You can upload this ZIP directly to https://appetize.io/upload"
 echo "=============================================================================="
-

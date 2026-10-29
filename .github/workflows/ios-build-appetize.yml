@@ -55,10 +55,7 @@ jobs:
 
       - name: "2. Configure Xcode Environment"
         run: |
-          echo "=== Available Xcode Installations ==="
-          ls -d /Applications/Xcode* || true
-          
-          # Select latest available Xcode 15+ or default
+          echo "=== Selecting Xcode Version ==="
           if [ -d "/Applications/Xcode_15.4.app" ]; then
             sudo xcode-select -s /Applications/Xcode_15.4.app
           elif [ -d "/Applications/Xcode_16.0.app" ]; then
@@ -68,6 +65,8 @@ jobs:
           fi
           
           xcodebuild -version
+          echo "=== Available Simulators ==="
+          xcrun simctl list devices available | grep -E "iPhone|iPad" | head -n 10
 
       - name: "3. Install & Verify XcodeGen"
         run: |
@@ -90,32 +89,28 @@ jobs:
             -project ACLVault.xcodeproj \
             -scheme ACLVault \
             -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=iPhone 15 Pro" \
             -configuration Debug \
-            -derivedDataPath DerivedData \
-            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath ./DerivedData \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            | xcbeautify || xcodebuild build \
-            -project ACLVault.xcodeproj \
-            -scheme ACLVault \
-            -sdk iphonesimulator \
-            -configuration Debug \
-            -derivedDataPath DerivedData \
-            -destination "generic/platform=iOS Simulator" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            CODE_SIGN_IDENTITY=""
 
       - name: "6. Package .app into Simulator ZIP"
         run: |
-          echo "Locating built ACLVault.app..."
-          APP_PATH=$(find DerivedData/Build/Products -name "ACLVault.app" -type d | head -n 1)
+          echo "=== Inspecting DerivedData Directory ==="
+          find ./DerivedData -maxdepth 4 -type d || true
+          
+          echo "Locating built application bundle..."
+          APP_PATH=$(find ./DerivedData -name "*.app" -type d | head -n 1)
           
           if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
-            echo "ERROR: ACLVault.app was not found in DerivedData!"
+            echo "Searching entire workspace for .app..."
+            APP_PATH=$(find . -name "*.app" -type d | grep -v "Xcode" | head -n 1)
+          fi
+          
+          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+            echo "ERROR: No .app bundle was generated in DerivedData!"
             exit 1
           fi
           
@@ -158,7 +153,6 @@ jobs:
           
           echo "Deploying ACLVault-Simulator.zip to Appetize.io API..."
           
-          # Call Appetize v2 API
           HTTP_RESPONSE=$(curl --silent --write-out "HTTPSTATUS:%{http_code}" \
             --request POST "https://api.appetize.io/v2/apps" \
             --header "Authorization: Bearer ${{ secrets.APPETIZE_API_TOKEN }}" \
@@ -175,7 +169,6 @@ jobs:
             PUBLIC_KEY=$(echo "$HTTP_BODY" | jq -r '.publicKey // empty')
             
             if [ -z "$PUBLIC_KEY" ]; then
-              # Fallback parser if jq structure is different
               PUBLIC_KEY=$(echo "$HTTP_BODY" | grep -o '"publicKey":"[^"]*' | cut -d'"' -f4)
             fi
             
@@ -243,4 +236,3 @@ jobs:
             echo "> **Tip for 100% Zero-Touch Automation:**" >> $SUMMARY_FILE
             echo "> Go to **Repository Settings > Secrets and variables > Actions** and add secret \`APPETIZE_API_TOKEN\` with your free token from [Appetize.io Account Settings](https://appetize.io/). Subsequent pushes will automatically deploy and generate the live web link!" >> $SUMMARY_FILE
           fi
-
