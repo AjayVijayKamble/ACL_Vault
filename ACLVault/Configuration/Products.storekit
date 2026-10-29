@@ -1,0 +1,107 @@
+{
+  "identifier" : "3A6D88E2",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "59.99",
+      "familyShareable" : true,
+      "internalID" : "C848A141",
+      "localizations" : [
+        {
+          "description" : "Full lifetime access to all 10 ACL rehab levels & AI tracker.",
+          "displayName" : "Lifetime Recovery Pass",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.aclvault.pro.lifetime",
+      "referenceName" : "Lifetime Pass",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21045231",
+      "localizations" : [
+
+      ],
+      "name" : "ACL Vault Pro Subscriptions",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "6.99",
+          "familyShareable" : true,
+          "groupNumber" : 2,
+          "internalID" : "B2958D6E",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Monthly unlimited access to AI Goniometer & all 10 levels.",
+              "displayName" : "Monthly Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.aclvault.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly Pro",
+          "subscriptionGroupID" : "21045231",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "39.99",
+          "familyShareable" : true,
+          "groupNumber" : 1,
+          "introductoryOffer" : {
+            "internalID" : "753CD2D1",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
+          "localizations" : [
+            {
+              "description" : "Covers your full 12-month recovery journey with 3 days free trial.",
+              "displayName" : "Full 12-Month Recovery",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.aclvault.pro.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Annual Recovery Pass",
+          "subscriptionGroupID" : "21045231",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
+

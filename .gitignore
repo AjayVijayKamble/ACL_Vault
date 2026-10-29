@@ -1,0 +1,41 @@
+# Build Artifacts
+.build/
+build/
+DerivedData/
+*.app
+*.zip
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# XcodeGen & Xcode Project Files (Generated dynamically in CI)
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+*.xcuserdata
+
+# macOS & System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Fastlane & CI Cache
+.fastlane/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Swift Package Manager
+Packages/
+Package.pins
+Package.resolved
+.swiftpm/
+
+# Local Environment Variables & Secrets
+.env
+.env.local
+*.private.env
+

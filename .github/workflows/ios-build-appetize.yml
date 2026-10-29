@@ -1,0 +1,246 @@
+name: "iOS Cloud Build & Appetize.io Preview"
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+    inputs:
+      device:
+        description: "Appetize.io Device Model"
+        required: false
+        default: "iphone15pro"
+        type: choice
+        options:
+          - "iphone15pro"
+          - "iphone15"
+          - "iphone14pro"
+          - "ipadair5th"
+      os_version:
+        description: "iOS Simulator OS Version"
+        required: false
+        default: "17.5"
+        type: choice
+        options:
+          - "17.5"
+          - "17.4"
+          - "17.2"
+          - "17.0"
+      scale:
+        description: "Device Display Scale (%)"
+        required: false
+        default: "75"
+        type: choice
+        options:
+          - "100"
+          - "85"
+          - "75"
+          - "60"
+      skip_appetize:
+        description: "Skip Appetize.io Upload (Build Artifact Only)"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build-and-deploy:
+    name: "Build iOS Simulator & Deploy to Appetize"
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - name: "1. Checkout Source Code"
+        uses: actions/checkout@v4
+
+      - name: "2. Configure Xcode Environment"
+        run: |
+          echo "=== Available Xcode Installations ==="
+          ls -d /Applications/Xcode* || true
+          
+          # Select latest available Xcode 15+ or default
+          if [ -d "/Applications/Xcode_15.4.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_15.4.app
+          elif [ -d "/Applications/Xcode_16.0.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.0.app
+          else
+            sudo xcode-select -s /Applications/Xcode.app
+          fi
+          
+          xcodebuild -version
+
+      - name: "3. Install & Verify XcodeGen"
+        run: |
+          if ! command -v xcodegen &> /dev/null; then
+            echo "Installing XcodeGen via Homebrew..."
+            brew install xcodegen
+          fi
+          xcodegen version
+
+      - name: "4. Generate Xcode Project (project.yml)"
+        run: |
+          echo "Generating ACLVault.xcodeproj from project.yml..."
+          xcodegen generate --spec project.yml
+          ls -ld ACLVault.xcodeproj
+
+      - name: "5. Compile for iOS Simulator (iphonesimulator)"
+        run: |
+          echo "Building ACLVault Debug Simulator Bundle..."
+          xcodebuild build \
+            -project ACLVault.xcodeproj \
+            -scheme ACLVault \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -derivedDataPath DerivedData \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            | xcbeautify || xcodebuild build \
+            -project ACLVault.xcodeproj \
+            -scheme ACLVault \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -derivedDataPath DerivedData \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: "6. Package .app into Simulator ZIP"
+        run: |
+          echo "Locating built ACLVault.app..."
+          APP_PATH=$(find DerivedData/Build/Products -name "ACLVault.app" -type d | head -n 1)
+          
+          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+            echo "ERROR: ACLVault.app was not found in DerivedData!"
+            exit 1
+          fi
+          
+          echo "Found application bundle at: $APP_PATH"
+          PARENT_DIR=$(dirname "$APP_PATH")
+          APP_NAME=$(basename "$APP_PATH")
+          
+          echo "Compressing $APP_NAME into ACLVault-Simulator.zip..."
+          (cd "$PARENT_DIR" && zip -r -y "${GITHUB_WORKSPACE}/ACLVault-Simulator.zip" "$APP_NAME")
+          
+          ls -lh "${GITHUB_WORKSPACE}/ACLVault-Simulator.zip"
+
+      - name: "7. Upload Build Artifact (GitHub Artifacts)"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ACLVault-Simulator-App
+          path: ACLVault-Simulator.zip
+          retention-days: 14
+
+      - name: "8. Deploy to Appetize.io & Generate Browser Link"
+        id: appetize
+        run: |
+          DEVICE="${{ github.event.inputs.device || 'iphone15pro' }}"
+          OS_VERSION="${{ github.event.inputs.os_version || '17.5' }}"
+          SCALE="${{ github.event.inputs.scale || '75' }}"
+          SKIP_APPETIZE="${{ github.event.inputs.skip_appetize || 'false' }}"
+          
+          if [ "$SKIP_APPETIZE" = "true" ]; then
+            echo "User requested to skip Appetize deployment."
+            echo "deployed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          if [ -z "${{ secrets.APPETIZE_API_TOKEN }}" ]; then
+            echo "Notice: APPETIZE_API_TOKEN secret is not set in this repository."
+            echo "deployed=false" >> $GITHUB_OUTPUT
+            echo "manual_upload=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "Deploying ACLVault-Simulator.zip to Appetize.io API..."
+          
+          # Call Appetize v2 API
+          HTTP_RESPONSE=$(curl --silent --write-out "HTTPSTATUS:%{http_code}" \
+            --request POST "https://api.appetize.io/v2/apps" \
+            --header "Authorization: Bearer ${{ secrets.APPETIZE_API_TOKEN }}" \
+            --form "file=@ACLVault-Simulator.zip" \
+            --form "platform=ios")
+          
+          HTTP_BODY=$(echo "$HTTP_RESPONSE" | sed -e 's/HTTPSTATUS\:.*//g')
+          HTTP_STATUS=$(echo "$HTTP_RESPONSE" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+          
+          echo "Appetize API HTTP Status: $HTTP_STATUS"
+          echo "Appetize Response Body: $HTTP_BODY"
+          
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 201 ]; then
+            PUBLIC_KEY=$(echo "$HTTP_BODY" | jq -r '.publicKey // empty')
+            
+            if [ -z "$PUBLIC_KEY" ]; then
+              # Fallback parser if jq structure is different
+              PUBLIC_KEY=$(echo "$HTTP_BODY" | grep -o '"publicKey":"[^"]*' | cut -d'"' -f4)
+            fi
+            
+            if [ -n "$PUBLIC_KEY" ]; then
+              APPETIZE_URL="https://appetize.io/app/${PUBLIC_KEY}?device=${DEVICE}&osVersion=${OS_VERSION}&scale=${SCALE}"
+              EMBED_URL="https://appetize.io/embed/${PUBLIC_KEY}?device=${DEVICE}&osVersion=${OS_VERSION}&scale=${SCALE}&autoplay=false"
+              
+              echo "deployed=true" >> $GITHUB_OUTPUT
+              echo "public_key=${PUBLIC_KEY}" >> $GITHUB_OUTPUT
+              echo "appetize_url=${APPETIZE_URL}" >> $GITHUB_OUTPUT
+              echo "embed_url=${EMBED_URL}" >> $GITHUB_OUTPUT
+              echo "device=${DEVICE}" >> $GITHUB_OUTPUT
+              echo "os_version=${OS_VERSION}" >> $GITHUB_OUTPUT
+            else
+              echo "deployed=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "Appetize API returned non-200 code ($HTTP_STATUS)."
+            echo "deployed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: "9. Write GitHub Actions Job Summary"
+        if: always()
+        run: |
+          SUMMARY_FILE="$GITHUB_STEP_SUMMARY"
+          
+          echo "# 🚀 ACL Vault: Automated iOS Cloud Build Summary" >> $SUMMARY_FILE
+          echo "" >> $SUMMARY_FILE
+          echo "| Property | Value |" >> $SUMMARY_FILE
+          echo "| :--- | :--- |" >> $SUMMARY_FILE
+          echo "| **Target App** | \`ACLVault.app\` (Debug / iphonesimulator) |" >> $SUMMARY_FILE
+          echo "| **Platform** | iOS 17.0+ (Swift 6) |" >> $SUMMARY_FILE
+          echo "| **Architecture** | x86_64 / arm64 Simulator Binary |" >> $SUMMARY_FILE
+          echo "| **Code Signing** | Disabled for Simulator (\`CODE_SIGNING_ALLOWED=NO\`) |" >> $SUMMARY_FILE
+          echo "| **Artifact** | \`ACLVault-Simulator.zip\` (Available in Artifacts tab) |" >> $SUMMARY_FILE
+          echo "" >> $SUMMARY_FILE
+          
+          if [ "${{ steps.appetize.outputs.deployed }}" = "true" ]; then
+            APP_URL="${{ steps.appetize.outputs.appetize_url }}"
+            PUB_KEY="${{ steps.appetize.outputs.public_key }}"
+            DEV="${{ steps.appetize.outputs.device }}"
+            OS="${{ steps.appetize.outputs.os_version }}"
+            
+            echo "## 📱 Interactive In-Browser Appetize.io Stream" >> $SUMMARY_FILE
+            echo "" >> $SUMMARY_FILE
+            echo "Your iOS app is compiled and running interactively in the cloud!" >> $SUMMARY_FILE
+            echo "" >> $SUMMARY_FILE
+            echo "👉 **[Click Here to Test ACL Vault in Your Windows Browser](${APP_URL})**" >> $SUMMARY_FILE
+            echo "" >> $SUMMARY_FILE
+            echo "- **Public App Key:** \`${PUB_KEY}\`" >> $SUMMARY_FILE
+            echo "- **Device Simulated:** \`${DEV}\` (iOS \`${OS}\`)" >> $SUMMARY_FILE
+            echo "" >> $SUMMARY_FILE
+            echo "### Embed in Webpage / Local HTML:" >> $SUMMARY_FILE
+            echo "\`\`\`html" >> $SUMMARY_FILE
+            echo "<iframe src=\"${{ steps.appetize.outputs.embed_url }}\" width=\"378px\" height=\"800px\" frameborder=\"0\" scrolling=\"no\"></iframe>" >> $SUMMARY_FILE
+            echo "\`\`\`" >> $SUMMARY_FILE
+          else
+            echo "## 📦 How to Test Interactively on Windows" >> $SUMMARY_FILE
+            echo "" >> $SUMMARY_FILE
+            echo "1. Download **\`ACLVault-Simulator.zip\`** from the **Artifacts** section at the bottom of this run." >> $SUMMARY_FILE
+            echo "2. Open **[Appetize.io Upload Page](https://appetize.io/upload)** in Chrome or Edge." >> $SUMMARY_FILE
+            echo "3. Drag and drop **\`ACLVault-Simulator.zip\`** onto Appetize.io." >> $SUMMARY_FILE
+            echo "4. Appetize will instantly launch an interactive streaming iPhone in your browser!" >> $SUMMARY_FILE
+            echo "" >> $SUMMARY_FILE
+            echo "> **Tip for 100% Zero-Touch Automation:**" >> $SUMMARY_FILE
+            echo "> Go to **Repository Settings > Secrets and variables > Actions** and add secret \`APPETIZE_API_TOKEN\` with your free token from [Appetize.io Account Settings](https://appetize.io/). Subsequent pushes will automatically deploy and generate the live web link!" >> $SUMMARY_FILE
+          fi
+
