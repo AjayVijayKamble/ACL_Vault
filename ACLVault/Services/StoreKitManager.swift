@@ -9,7 +9,7 @@ import Foundation
 import StoreKit
 import SwiftUI
 
-public enum SubscriptionTier: String, CaseIterable, Identifiable {
+public enum SubscriptionTier: String, CaseIterable, Identifiable, Sendable {
     case monthly = "com.aclvault.pro.monthly"
     case annual = "com.aclvault.pro.annual"
     case lifetime = "com.aclvault.pro.lifetime"
@@ -46,6 +46,7 @@ public enum SubscriptionTier: String, CaseIterable, Identifiable {
 }
 
 @Observable
+@MainActor
 public final class StoreKitManager {
     public static let shared = StoreKitManager()
     
@@ -55,10 +56,22 @@ public final class StoreKitManager {
     public var isLoading: Bool = false
     public var errorMessage: String? = nil
     
-    private var transactionListenerTask: Task<Void, Error>? = nil
+    private var transactionListenerTask: Task<Void, Never>? = nil
     
     public init() {
-        self.transactionListenerTask = listenForTransactions()
+        self.transactionListenerTask = Task { [weak self] in
+            for await result in Transaction.updates {
+                guard let self = self else { break }
+                do {
+                    let transaction = try Self.checkVerified(result)
+                    self.updatePurchasedIdentifiers(transaction)
+                    await transaction.finish()
+                } catch {
+                    // Unverified transaction
+                }
+            }
+        }
+        
         Task {
             await self.loadProductsAndPurchases()
         }
@@ -68,23 +81,7 @@ public final class StoreKitManager {
         transactionListenerTask?.cancel()
     }
     
-    // MARK: - Transaction Updates Stream
-    private func listenForTransactions() -> Task<Void, Error> {
-        return Task.detached {
-            for await result in Transaction.updates {
-                do {
-                    let transaction = try self.checkVerified(result)
-                    await self.updatePurchasedIdentifiers(transaction)
-                    await transaction.finish()
-                } catch {
-                    // Unverified transaction
-                }
-            }
-        }
-    }
-    
     // MARK: - Load Products from StoreKit
-    @MainActor
     public func loadProductsAndPurchases() async {
         self.isLoading = true
         self.errorMessage = nil
@@ -103,7 +100,6 @@ public final class StoreKitManager {
     }
     
     // MARK: - Purchase Flow
-    @MainActor
     public func purchase(_ product: Product) async -> Bool {
         self.isLoading = true
         self.errorMessage = nil
@@ -112,8 +108,8 @@ public final class StoreKitManager {
             let result = try await product.purchase()
             switch result {
             case .success(let verification):
-                let transaction = try checkVerified(verification)
-                await updatePurchasedIdentifiers(transaction)
+                let transaction = try Self.checkVerified(verification)
+                self.updatePurchasedIdentifiers(transaction)
                 await transaction.finish()
                 HapticManager.gateUnlocked()
                 self.isLoading = false
@@ -139,7 +135,6 @@ public final class StoreKitManager {
     }
     
     // MARK: - Restore Purchases
-    @MainActor
     public func restorePurchases() async {
         self.isLoading = true
         self.errorMessage = nil
@@ -156,15 +151,14 @@ public final class StoreKitManager {
     }
     
     // MARK: - Demo / Simulator Unlock Toggle
-    @MainActor
     public func toggleDemoProAccess(profile: UserProfile) {
         self.isProUnlocked.toggle()
         profile.isProSubscriber = self.isProUnlocked
         HapticManager.gateUnlocked()
     }
     
-    // MARK: - Verification Helper
-    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+    // MARK: - Static Verification Helper
+    public static func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .unverified(_, let error):
             throw error
@@ -173,8 +167,7 @@ public final class StoreKitManager {
         }
     }
     
-    @MainActor
-    private func updatePurchasedIdentifiers(_ transaction: Transaction) async {
+    public func updatePurchasedIdentifiers(_ transaction: Transaction) {
         if transaction.revocationDate == nil {
             self.purchasedProductIDs.insert(transaction.productID)
             self.isProUnlocked = true
@@ -184,7 +177,6 @@ public final class StoreKitManager {
         }
     }
     
-    @MainActor
     public func updateSubscriptionStatus() async {
         var activeIDs: Set<String> = []
         for await result in Transaction.currentEntitlements {
@@ -198,4 +190,3 @@ public final class StoreKitManager {
         self.isProUnlocked = !activeIDs.isEmpty
     }
 }
-

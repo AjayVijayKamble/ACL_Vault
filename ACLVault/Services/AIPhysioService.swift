@@ -22,7 +22,8 @@ public struct PhysioAssessmentResult: Sendable {
 }
 
 // MARK: - LLM Client Protocol
-public protocol LLMPhysioClient: Sendable {
+@MainActor
+public protocol LLMPhysioClient {
     func generateCoachingInsight(
         profile: UserProfile,
         checkIn: DailyCheckIn,
@@ -31,6 +32,7 @@ public protocol LLMPhysioClient: Sendable {
 }
 
 // MARK: - Deterministic On-Device Rule Engine
+@MainActor
 public struct DeterministicPhysioEngine: LLMPhysioClient {
     public init() {}
     
@@ -60,6 +62,7 @@ public struct DeterministicPhysioEngine: LLMPhysioClient {
 }
 
 // MARK: - Cloud Gemini API Client Implementation
+@MainActor
 public struct GeminiPhysioClient: LLMPhysioClient {
     public let apiKey: String
     
@@ -130,7 +133,6 @@ public struct GeminiPhysioClient: LLMPhysioClient {
                 )
             }
             
-            // Simple parse of response
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let candidates = json["candidates"] as? [[String: Any]],
                let firstCandidate = candidates.first,
@@ -175,7 +177,6 @@ public final class AIPhysioService {
         checkIn: DailyCheckIn,
         recentROM: ROMMeasurement?
     ) async -> PhysioAssessmentResult {
-        // Explicit simulation flag or clinical thresholds
         let isFlareUp = profile.simulateFlareUp || checkIn.painScore >= 6 || checkIn.swellingLevel == .severe
         
         let coachMessage = await llmClient.generateCoachingInsight(
@@ -186,13 +187,11 @@ public final class AIPhysioService {
         
         var precautions: [String] = []
         
-        // Meniscus check
         if profile.meniscusRepair && profile.daysPostOp < 42 {
             precautions.append("Meniscus Stitch Protection: Do not flex past 90° until Week 6.")
             precautions.append("Avoid active hamstring loaded curls.")
         }
         
-        // Graft specific checks
         switch profile.graftType {
         case .patellar:
             precautions.append("Patellar Tendon Autograft: Avoid resisted open-chain extension (45°-0°) to protect donor site.")
@@ -242,4 +241,3 @@ public final class AIPhysioService {
         }
     }
 }
-

@@ -12,7 +12,7 @@ public struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     
-    @Bindable var profile: UserProfile
+    var profile: UserProfile
     
     @State private var geminiApiKey: String = ""
     @State private var showingReSeedAlert: Bool = false
@@ -22,6 +22,8 @@ public struct SettingsSheet: View {
     }
     
     public var body: some View {
+        @Bindable var profile = profile
+        
         NavigationStack {
             ZStack {
                 Color.vaultBackground.ignoresSafeArea()
@@ -213,4 +215,3 @@ public struct SettingsSheet: View {
         }
     }
 }
-
