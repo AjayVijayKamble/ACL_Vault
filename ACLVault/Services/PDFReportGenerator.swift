@@ -33,16 +33,17 @@ public enum PDFReportGenerator {
         let fileName = "ACL_Progress_Report_\(profile.name.replacingOccurrences(of: " ", with: "_"))_Day\(profile.daysPostOp).pdf"
         let fileURL = tempDirectory.appendingPathComponent(fileName)
         
-        renderer.render { size, context in
-            var box = CGRect(x: 0, y: 0, width: size.width, height: size.height)
-            guard let pdfContext = CGContext(fileURL as CFURL, mediaBox: &box, nil) else {
-                return
-            }
-            pdfContext.beginPDFPage(nil)
-            context(pdfContext)
-            pdfContext.endPDFPage()
-            pdfContext.closePDF()
+        var box = CGRect(x: 0, y: 0, width: 612, height: 792)
+        guard let pdfContext = CGContext(fileURL as CFURL, mediaBox: &box, nil) else {
+            return nil
         }
+        
+        pdfContext.beginPDFPage(nil)
+        renderer.render { size, renderInContext in
+            renderInContext(pdfContext)
+        }
+        pdfContext.endPDFPage()
+        pdfContext.closePDF()
         
         return fileURL
     }

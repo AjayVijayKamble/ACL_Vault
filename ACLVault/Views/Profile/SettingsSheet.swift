@@ -12,17 +12,16 @@ public struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     
-    var profile: UserProfile
+    @Bindable var profile: UserProfile
     
     @State private var geminiApiKey: String = ""
     @State private var showingReSeedAlert: Bool = false
     
     public init(profile: UserProfile) {
-        self.profile = profile
+        self._profile = Bindable(wrappedValue: profile)
     }
     
     public var body: some View {
-        @Bindable var profile = profile
         
         NavigationStack {
             ZStack {

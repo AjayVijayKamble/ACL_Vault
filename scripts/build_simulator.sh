@@ -19,7 +19,7 @@ xcodebuild build \
   -project ACLVault.xcodeproj \
   -scheme ACLVault \
   -sdk iphonesimulator \
-  -destination "platform=iOS Simulator,name=iPhone 15 Pro" \
+  -destination "generic/platform=iOS Simulator" \
   -configuration Debug \
   -derivedDataPath ./DerivedData \
   CODE_SIGNING_ALLOWED=NO \

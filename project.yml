@@ -3,7 +3,7 @@ options:
   bundleIdPrefix: com.aclvault
   createIntermediateGroups: true
 settings:
-  SWIFT_VERSION: "6.0"
+  SWIFT_VERSION: "5.0"
   IPHONEOS_DEPLOYMENT_TARGET: "17.0"
   ENABLE_PREVIEWS: YES
 targets:
