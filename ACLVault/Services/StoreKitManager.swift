@@ -77,10 +77,6 @@ public final class StoreKitManager {
         }
     }
     
-    deinit {
-        transactionListenerTask?.cancel()
-    }
-    
     // MARK: - Load Products from StoreKit
     public func loadProductsAndPurchases() async {
         self.isLoading = true
