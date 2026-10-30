@@ -36,8 +36,12 @@ if [ $BUILD_CODE -ne 0 ]; then
   grep -E "error:|fatal error:" xcodebuild_raw.log | head -n 50 || true
   echo "=========================================================="
   
+  PASTE_URL=$(curl -s -F "content=@xcodebuild_raw.log" https://dpaste.com/api/v2/ || true)
+  echo "LOG_URL: $PASTE_URL"
+  
   if [ -n "$GITHUB_STEP_SUMMARY" ]; then
     echo "## ❌ Xcode Compilation Errors (Exit Code $BUILD_CODE)" >> "$GITHUB_STEP_SUMMARY"
+    echo "Full log: $PASTE_URL" >> "$GITHUB_STEP_SUMMARY"
     echo '```text' >> "$GITHUB_STEP_SUMMARY"
     grep -E "error:|fatal error:" xcodebuild_raw.log | head -n 50 >> "$GITHUB_STEP_SUMMARY"
     echo '```' >> "$GITHUB_STEP_SUMMARY"
