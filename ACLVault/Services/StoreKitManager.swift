@@ -60,7 +60,7 @@ public final class StoreKitManager {
     
     public init() {
         self.transactionListenerTask = Task { [weak self] in
-            for await result in Transaction.updates {
+            for await result in StoreKit.Transaction.updates {
                 guard let self = self else { break }
                 do {
                     let transaction = try Self.checkVerified(result)
@@ -167,7 +167,7 @@ public final class StoreKitManager {
         }
     }
     
-    public func updatePurchasedIdentifiers(_ transaction: Transaction) {
+    public func updatePurchasedIdentifiers(_ transaction: StoreKit.Transaction) {
         if transaction.revocationDate == nil {
             self.purchasedProductIDs.insert(transaction.productID)
             self.isProUnlocked = true
@@ -179,7 +179,7 @@ public final class StoreKitManager {
     
     public func updateSubscriptionStatus() async {
         var activeIDs: Set<String> = []
-        for await result in Transaction.currentEntitlements {
+        for await result in StoreKit.Transaction.currentEntitlements {
             if case .verified(let transaction) = result {
                 if transaction.revocationDate == nil {
                     activeIDs.insert(transaction.productID)

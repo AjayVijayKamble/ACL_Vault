@@ -123,7 +123,7 @@ public struct PaywallView: View {
                     .foregroundStyle(Color.vaultTextPrimary)
                     .multilineTextAlignment(.center)
                 
-                Text("Under-cutting physical therapy apps by 70%. Never pay \$200/mo for basic knee rehab tracking.")
+                Text("Under-cutting physical therapy apps by 70%. Never pay $200/mo for basic knee rehab tracking.")
                     .font(.system(size: 13))
                     .foregroundStyle(Color.vaultTextSecondary)
                     .multilineTextAlignment(.center)

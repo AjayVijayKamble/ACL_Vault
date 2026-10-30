@@ -9,10 +9,10 @@ import SwiftUI
 
 // MARK: - Card Surface View Modifier
 public struct VaultCardModifier: ViewModifier {
-    var backgroundColor: Color = .vaultCardSurface
-    var borderColor: Color = .vaultBorder
-    var cornerRadius: CGFloat = 16
-    var padding: CGFloat = 16
+    public var backgroundColor: Color = .vaultCardSurface
+    public var borderColor: Color = .vaultBorder
+    public var cornerRadius: CGFloat = 16
+    public var padding: CGFloat = 16
     
     public func body(content: Content) -> some View {
         content

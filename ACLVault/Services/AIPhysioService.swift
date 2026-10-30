@@ -22,8 +22,7 @@ public struct PhysioAssessmentResult: Sendable {
 }
 
 // MARK: - LLM Client Protocol
-@MainActor
-public protocol LLMPhysioClient {
+public protocol LLMPhysioClient: Sendable {
     func generateCoachingInsight(
         profile: UserProfile,
         checkIn: DailyCheckIn,
@@ -32,7 +31,6 @@ public protocol LLMPhysioClient {
 }
 
 // MARK: - Deterministic On-Device Rule Engine
-@MainActor
 public struct DeterministicPhysioEngine: LLMPhysioClient {
     public init() {}
     
@@ -62,7 +60,6 @@ public struct DeterministicPhysioEngine: LLMPhysioClient {
 }
 
 // MARK: - Cloud Gemini API Client Implementation
-@MainActor
 public struct GeminiPhysioClient: LLMPhysioClient {
     public let apiKey: String
     
@@ -160,8 +157,8 @@ public final class AIPhysioService {
     
     private var llmClient: LLMPhysioClient
     
-    public init(llmClient: LLMPhysioClient = DeterministicPhysioEngine()) {
-        self.llmClient = llmClient
+    public init(llmClient: LLMPhysioClient? = nil) {
+        self.llmClient = llmClient ?? DeterministicPhysioEngine()
     }
     
     public func setApiKey(_ key: String) {
