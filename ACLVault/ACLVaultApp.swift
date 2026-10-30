@@ -10,6 +10,7 @@ import SwiftUI
 import SwiftData
 
 @main
+@MainActor
 struct ACLVaultApp: App {
     let container: ModelContainer
     

@@ -48,8 +48,6 @@ jobs:
     name: "Build iOS Simulator & Deploy to Appetize"
     runs-on: macos-14
     timeout-minutes: 30
-    permissions:
-      contents: write
 
     steps:
       - name: "1. Checkout Source Code"
@@ -74,48 +72,8 @@ jobs:
           fi
           xcodegen version
 
-      - name: "4. Generate Xcode Project & Patch ObjectVersion"
-        run: |
-          echo "Generating ACLVault.xcodeproj from project.yml..."
-          xcodegen generate --spec project.yml
-          
-          echo "Patching objectVersion to 56 for Xcode 15.4 compatibility..."
-          sed -i '' 's/objectVersion = [0-9]*/objectVersion = 56/g' ACLVault.xcodeproj/project.pbxproj
-          
-          echo "Verified objectVersion in project.pbxproj:"
-          grep "objectVersion" ACLVault.xcodeproj/project.pbxproj || true
-
-      - name: "5. Compile for iOS Simulator (iphonesimulator)"
-        run: |
-          echo "Building ACLVault Debug Simulator Bundle..."
-          set +e
-          xcodebuild build \
-            -project ACLVault.xcodeproj \
-            -scheme ACLVault \
-            -sdk iphonesimulator \
-            -destination "generic/platform=iOS Simulator" \
-            -configuration Debug \
-            -derivedDataPath ./DerivedData \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" > xcodebuild_raw.log 2>&1
-          BUILD_CODE=$?
-          cat xcodebuild_raw.log
-          
-          if [ $BUILD_CODE -ne 0 ]; then
-            echo "=========================================================="
-            echo "=== CRITICAL COMPILATION ERRORS (Exit Code $BUILD_CODE) ==="
-            echo "=========================================================="
-            grep -E "error:|fatal error:" xcodebuild_raw.log | head -n 50 || true
-            echo "=========================================================="
-            
-            echo "## ❌ Xcode Compilation Errors (Exit Code $BUILD_CODE)" >> $GITHUB_STEP_SUMMARY
-            echo '```text' >> $GITHUB_STEP_SUMMARY
-            grep -E "error:|fatal error:" xcodebuild_raw.log | head -n 50 >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            exit $BUILD_CODE
-          fi
-          set -e
+      - name: "4. Build ACLVault for Simulator"
+        run: bash scripts/ci_build.sh
 
       - name: "Upload Build Failure Log"
         if: failure()
@@ -125,23 +83,7 @@ jobs:
           path: xcodebuild_raw.log
           retention-days: 7
 
-      - name: "Post Failure to Commit Comment"
-        if: failure()
-        run: |
-          echo "Posting compiler errors to commit comment..."
-          ERRORS=$(grep -E "error:|fatal error:" xcodebuild_raw.log | head -n 30)
-          if [ -z "$ERRORS" ]; then
-            ERRORS=$(tail -n 30 xcodebuild_raw.log)
-          fi
-          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
-            -f body="### ❌ Compilation Failure:
-\`\`\`text
-$ERRORS
-\`\`\`" || true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: "6. Package .app into Simulator ZIP"
+      - name: "5. Package .app into Simulator ZIP"
         run: |
           echo "=== Inspecting DerivedData Directory ==="
           find ./DerivedData -maxdepth 4 -type d || true
@@ -168,14 +110,14 @@ $ERRORS
           
           ls -lh "${GITHUB_WORKSPACE}/ACLVault-Simulator.zip"
 
-      - name: "7. Upload Build Artifact (GitHub Artifacts)"
+      - name: "6. Upload Build Artifact (GitHub Artifacts)"
         uses: actions/upload-artifact@v4
         with:
           name: ACLVault-Simulator-App
           path: ACLVault-Simulator.zip
           retention-days: 14
 
-      - name: "8. Deploy to Appetize.io & Generate Browser Link"
+      - name: "7. Deploy to Appetize.io & Generate Browser Link"
         id: appetize
         run: |
           DEVICE="${{ github.event.inputs.device || 'iphone15pro' }}"
@@ -235,7 +177,7 @@ $ERRORS
             echo "deployed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: "9. Write GitHub Actions Job Summary"
+      - name: "8. Write GitHub Actions Job Summary"
         if: always()
         run: |
           SUMMARY_FILE="$GITHUB_STEP_SUMMARY"
