@@ -8,7 +8,6 @@
 import Foundation
 import AudioToolbox
 
-@MainActor
 public enum AudioCueManager {
     // Standard iOS system audio sound IDs
     private enum SoundID: SystemSoundID {
@@ -48,4 +47,3 @@ public enum AudioCueManager {
         AudioServicesPlaySystemSound(SoundID.alertLow.rawValue)
     }
 }
-

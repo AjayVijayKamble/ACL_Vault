@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 public struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var userProfiles: [UserProfile]

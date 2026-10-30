@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import AVFoundation
 
+@MainActor
 public struct AICameraGoniometerView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext

@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 public struct ExerciseLibraryView: View {
     @Query(sort: \Exercise.levelRequired, order: .forward) private var allExercises: [Exercise]
     

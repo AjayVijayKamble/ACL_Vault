@@ -10,6 +10,7 @@ import CoreMotion
 import SwiftUI
 
 @Observable
+@MainActor
 public final class MotionManagerService {
     public static let shared = MotionManagerService()
     

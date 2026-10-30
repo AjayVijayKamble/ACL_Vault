@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 public struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var userProfiles: [UserProfile]

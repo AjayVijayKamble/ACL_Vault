@@ -9,6 +9,7 @@ import SwiftUI
 import StoreKit
 import SwiftData
 
+@MainActor
 public struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
