@@ -36,12 +36,16 @@ if [ $BUILD_CODE -ne 0 ]; then
   grep -E "error:|fatal error:" xcodebuild_raw.log | head -n 50 || true
   echo "=========================================================="
   
-  PASTE_URL=$(curl -s -F "content=@xcodebuild_raw.log" https://dpaste.com/api/v2/ || true)
-  echo "LOG_URL: $PASTE_URL"
+  # Push build log to build-log branch for immediate local inspection
+  git config user.name "github-actions[bot]"
+  git config user.email "github-actions[bot]@users.noreply.github.com"
+  git checkout -B build-log
+  git add -f xcodebuild_raw.log
+  git commit -m "ci: compiler log" || true
+  git push origin build-log --force || true
   
   if [ -n "$GITHUB_STEP_SUMMARY" ]; then
     echo "## ❌ Xcode Compilation Errors (Exit Code $BUILD_CODE)" >> "$GITHUB_STEP_SUMMARY"
-    echo "Full log: $PASTE_URL" >> "$GITHUB_STEP_SUMMARY"
     echo '```text' >> "$GITHUB_STEP_SUMMARY"
     grep -E "error:|fatal error:" xcodebuild_raw.log | head -n 50 >> "$GITHUB_STEP_SUMMARY"
     echo '```' >> "$GITHUB_STEP_SUMMARY"

@@ -48,6 +48,8 @@ jobs:
     name: "Build iOS Simulator & Deploy to Appetize"
     runs-on: macos-14
     timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
       - name: "1. Checkout Source Code"
